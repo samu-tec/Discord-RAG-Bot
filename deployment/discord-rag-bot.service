@@ -1,0 +1,17 @@
+[Unit]
+Description=Discord RAG Bot
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=TU_USUARIO
+Group=TU_USUARIO
+WorkingDirectory=/ruta/completa/a/discord-rag-bot
+ExecStart=/ruta/completa/a/discord-rag-bot/venv/bin/python /ruta/completa/a/discord-rag-bot/bot.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

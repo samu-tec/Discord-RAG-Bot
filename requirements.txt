@@ -1,0 +1,4 @@
+discord.py
+ollama
+chromadb
+python-dotenv

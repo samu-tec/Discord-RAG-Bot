@@ -1,0 +1,29 @@
+{
+    "bot": {
+        "activity_message": "Local knowledge assistant",
+        "split_message_limit": 1900
+    },
+    "knowledge_base": {
+        "knowledge_dir": "./knowledge_base",
+        "db_dir": "./chroma_db",
+        "collection_name": "discord_rag_knowledge"
+    },
+    "retrieval": {
+        "top_k": 3
+    },
+    "indexing": {
+        "chunk_size": 1200,
+        "chunk_overlap": 150
+    },
+    "ollama": {
+        "base_url": "http://localhost:11434",
+        "chat_model": "qwen2.5:1.5b",
+        "embedding_model": "embeddinggemma",
+        "temperature": 0.2,
+        "num_thread": 3,
+        "num_predict": 850
+    },
+    "prompts": {
+        "system_prompt": "Eres un asistente útil, claro y preciso. Responde usando el contexto recuperado de la base de conocimiento. Si la información no aparece en el contexto, dilo claramente y no inventes datos."
+    }
+}

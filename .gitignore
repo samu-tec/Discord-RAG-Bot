@@ -1,0 +1,33 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Variables de entorno y configuración local real
+.env
+config.json
+
+# Base de datos vectorial persistente
+chroma_db/
+
+# Carpeta opcional de conocimiento generada o privada
+knowledge_private/
+
+# Logs
+*.log
+
+# Archivos del sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Archivos temporales
+*.tmp
+*.swp
