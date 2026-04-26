@@ -21,6 +21,10 @@ def load_knowledge_collection(settings: dict):
     )
 
 
+def get_collection_count(collection) -> int:
+    return collection.count()
+
+
 def retrieve_relevant_chunks(question: str, collection, top_k: int) -> list[dict]:
     results = collection.query(
         query_texts=[question],
@@ -77,10 +81,21 @@ def generate_rag_answer(question: str, settings: dict, collection) -> dict:
     num_predict = settings["ollama"]["num_predict"]
     system_prompt = settings["prompts"]["system_prompt"]
 
+    collection_count = get_collection_count(collection)
+
+    if collection_count == 0:
+        return {
+            "answer": "",
+            "chunks": [],
+            "context": "",
+            "has_context": False,
+            "needs_sync": True,
+        }
+
     chunks = retrieve_relevant_chunks(
         question=question,
         collection=collection,
-        top_k=top_k,
+        top_k=min(top_k, collection_count),
     )
 
     if not chunks:
@@ -89,6 +104,7 @@ def generate_rag_answer(question: str, settings: dict, collection) -> dict:
             "chunks": [],
             "context": "",
             "has_context": False,
+            "needs_sync": False,
         }
 
     context = build_context(chunks)
@@ -122,4 +138,5 @@ def generate_rag_answer(question: str, settings: dict, collection) -> dict:
         "chunks": chunks,
         "context": context,
         "has_context": True,
+        "needs_sync": False,
     }

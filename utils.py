@@ -2,7 +2,14 @@ def normalize_query(text: str) -> str:
     return " ".join(text.lower().strip().split())
 
 
+def split_hard(text: str, limit: int) -> list[str]:
+    return [text[index:index + limit] for index in range(0, len(text), limit)]
+
+
 def split_message(text: str, limit: int = 1900) -> list[str]:
+    if limit < 1:
+        raise ValueError("El límite de caracteres debe ser mayor que 0.")
+
     if len(text) <= limit:
         return [text]
 
@@ -56,10 +63,16 @@ def split_message(text: str, limit: int = 1900) -> list[str]:
 
                 if len(candidate) <= limit:
                     word_part = candidate
-                else:
-                    if word_part:
-                        parts.append(word_part)
+                    continue
+
+                if word_part:
+                    parts.append(word_part)
+                    word_part = ""
+
+                if len(word) <= limit:
                     word_part = word
+                else:
+                    parts.extend(split_hard(word, limit))
 
             if word_part:
                 temp_part = word_part

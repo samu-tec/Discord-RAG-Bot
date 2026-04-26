@@ -1,77 +1,46 @@
 # Discord RAG Bot
 
-Bot de Discord con arquitectura RAG (Retrieval-Augmented Generation) para consultar una base de conocimiento local usando Ollama y ChromaDB.
+Bot RAG para Discord configurable, capaz de responder preguntas usando una base de conocimiento local con Ollama y ChromaDB, optimizado para hardware modesto.
 
-Está pensado para funcionar bien en hardware modesto, pero también puede adaptarse a equipos más potentes ajustando la configuración.
+El proyecto está pensado para que una persona pueda clonarlo, ajustar `.env` y `config.json`, añadir sus documentos, ejecutar `/sync_knowledge` y empezar a usar `/ai` sin tocar el código.
 
----
+## Qué hace
 
-## ¿Qué hace este proyecto?
+El bot responde en Discord a partir de documentos locales en formato `.md` y `.txt`.
 
-Este proyecto crea un bot de Discord capaz de responder preguntas usando información propia almacenada en archivos locales.
+Flujo básico:
 
-En lugar de depender solo de lo que “sepa” el modelo, el bot:
+1. Un usuario pregunta con `/ai`.
+2. El bot busca fragmentos relevantes en ChromaDB.
+3. Envía esos fragmentos como contexto a un modelo local en Ollama.
+4. Devuelve la respuesta en Discord.
 
-1. Busca los fragmentos más relevantes dentro de una base de conocimiento local.
-2. Usa esos fragmentos como contexto.
-3. Genera una respuesta con un modelo local en Ollama.
-4. Devuelve la respuesta dentro de Discord mediante slash commands.
+No indexa documentos al arrancar. La indexación se hace manualmente con `/sync_knowledge`.
 
-Esto permite actualizar el conocimiento del bot sin reentrenar el modelo: solo hay que modificar los documentos y volver a indexarlos.
-
----
-
-## Características principales
-
-* Bot de Discord con slash commands
-* Base de conocimiento local a partir de archivos `.md` y `.txt`
-* Recuperación semántica con ChromaDB
-* Respuestas generadas en local con Ollama
-* Modelo de chat y modelo de embeddings configurables por separado
-* Reindexación manual bajo demanda
-* Cola de procesamiento para evitar saturar la CPU
-* Optimizado para hardware modesto
-* División automática de respuestas largas para cumplir con los límites de Discord
-* Configuración externa con `.env` y `config.json`
-* Sin indexación automática al arrancar
-* Caché simple para preguntas repetidas
-
----
-
-## ¿Qué significa RAG?
+## Qué significa RAG
 
 RAG significa **Retrieval-Augmented Generation**.
 
-En este proyecto significa que el bot no responde únicamente con lo que “recuerda” el modelo, sino que primero busca información relevante dentro de tu base de conocimiento y luego responde usando ese contexto.
+En este proyecto quiere decir que el modelo no responde solo con su conocimiento interno. Primero se recuperan fragmentos de tus documentos locales y después el modelo genera una respuesta usando ese contexto.
 
-En la práctica, el flujo es este:
+Esto permite cambiar el conocimiento del bot modificando archivos, sin reentrenar modelos.
 
-1. El usuario lanza `/ai`
-2. El bot busca los fragmentos más relevantes en la base vectorial
-3. Construye un contexto con esos fragmentos
-4. Envía la pregunta y el contexto al modelo de chat
-5. Devuelve la respuesta final
+## Características
 
-Esto encaja muy bien en un proyecto como este porque:
+* Slash command `/ai` para hacer preguntas.
+* Slash command `/sync_knowledge` para reindexar manualmente.
+* Base de conocimiento local en archivos `.md` y `.txt`.
+* ChromaDB como base vectorial persistente.
+* Ollama para chat y embeddings locales.
+* Modelo de chat y modelo de embeddings configurables por separado.
+* Cola simple para procesar una generación pesada a la vez.
+* Estados visibles: búsqueda, procesamiento y posición en cola.
+* Límite de hilos configurable con `num_thread`.
+* División automática de respuestas largas para Discord.
+* Caché simple para preguntas repetidas.
+* Sin secretos en el código.
 
-* puedes cambiar los documentos cuando quieras
-* no necesitas reentrenar el modelo
-* puedes adaptar el bot a cualquier temática
-* funciona bien en local
-
----
-
-## Tecnologías usadas
-
-* **Python**: lenguaje principal del proyecto
-* **discord.py**: librería para el bot de Discord y slash commands
-* **Ollama**: ejecución local del modelo de lenguaje y del modelo de embeddings
-* **ChromaDB**: base de datos vectorial persistente
-* **systemd**: despliegue opcional como servicio en Linux
-
----
-
-## Estructura del proyecto
+## Estructura
 
 ```text
 discord-rag-bot/
@@ -85,331 +54,272 @@ discord-rag-bot/
 ├─ .env.example
 ├─ config.example.json
 ├─ README.md
+├─ LICENSE
 ├─ knowledge_base/
 │  └─ .gitkeep
 └─ deployment/
    └─ discord-rag-bot.service
 ```
 
----
+## Requisitos
 
-## Requisitos previos
+* Python 3.10 o superior.
+* `pip` y `venv`.
+* Ollama instalado y funcionando.
+* Una cuenta de Discord.
+* Un bot creado en el Discord Developer Portal.
 
-Antes de empezar, necesitas tener instalado lo siguiente:
+El bot usa slash commands, así que no necesita activar el privileged intent de contenido de mensajes.
 
-* Python 3
-* `pip`
-* `venv`
-* Ollama
-* Una cuenta de Discord
-* Un bot creado en el portal de desarrolladores de Discord
+## Instalación
 
----
-
-## Instalación paso a paso
-
-### 1) Clonar el repositorio
+### 1. Clonar el repositorio
 
 ```bash
 git clone https://github.com/samu-tec/discord-rag-bot.git
 cd discord-rag-bot
 ```
 
----
+### 2. Crear y activar un entorno virtual
 
-### 2) Crear y activar un entorno virtual
-
-#### Linux / macOS
+Linux o macOS:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-#### Windows
+Windows PowerShell:
 
-```bash
+```powershell
 python -m venv venv
-venv\Scripts\activate
+.\venv\Scripts\Activate.ps1
 ```
 
----
-
-### 3) Instalar dependencias
+### 3. Instalar dependencias
 
 ```bash
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
----
+## Instalar Ollama y modelos
 
-## Instalación de Ollama
+Instala Ollama desde:
 
-Instala Ollama en tu sistema siguiendo la documentación oficial de Ollama.
+```text
+https://ollama.com/download
+```
 
-Después, descarga los modelos que vas a usar. En la configuración actual del proyecto se separan:
+Comprueba que Ollama está funcionando. En muchos sistemas queda iniciado como servicio. Si necesitas arrancarlo manualmente:
 
-* un modelo de chat para responder
-* un modelo de embeddings para indexar y recuperar contexto
+```bash
+ollama serve
+```
 
-Ejemplo recomendado:
+Descarga el modelo de chat y el modelo de embeddings definidos en `config.example.json`:
 
 ```bash
 ollama pull qwen2.5:1.5b
 ollama pull embeddinggemma
 ```
 
-Más adelante puedes cambiar esos modelos en `config.json`.
+Puedes cambiar ambos modelos en `config.json` sin modificar código.
 
----
+## Crear el bot en Discord
 
-## Configuración del proyecto
+### 1. Abrir el portal de desarrolladores
 
-### 1) Crear el archivo `.env`
+Entra en:
 
-Copia el archivo de ejemplo:
+```text
+https://discord.com/developers/applications
+```
+
+### 2. Crear una aplicación
+
+Pulsa **New Application**, ponle un nombre y crea la aplicación.
+
+### 3. Crear el usuario bot
+
+Dentro de la aplicación, entra en **Bot** y crea el bot si todavía no existe.
+
+### 4. Copiar el token
+
+En la sección **Bot**, copia el token y guárdalo en `.env`.
+
+Trata el token como una contraseña:
+
+* No lo subas a GitHub.
+* No lo compartas.
+* Si se filtra, regénéralo en el portal de Discord.
+
+### 5. Invitar el bot a tu servidor
+
+En el portal de Discord, ve a **OAuth2** o **Installation** y genera una URL de invitación con estos scopes:
+
+* `bot`
+* `applications.commands`
+
+Permisos recomendados:
+
+* View Channels
+* Send Messages
+* Read Message History
+
+Abre la URL generada e invita el bot al servidor donde quieras usarlo.
+
+## Configuración
+
+### 1. Crear `.env`
+
+Linux o macOS:
 
 ```bash
 cp .env.example .env
 ```
 
-Abre el archivo `.env` y escribe tu token real:
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edita `.env`:
 
 ```env
 DISCORD_TOKEN=tu_token_real_aqui
 ```
 
----
+### 2. Crear `config.json`
 
-### 2) Crear el archivo `config.json`
-
-Copia el archivo de ejemplo:
+Linux o macOS:
 
 ```bash
 cp config.example.json config.json
 ```
 
-Contenido base recomendado:
+Windows PowerShell:
+
+```powershell
+Copy-Item config.example.json config.json
+```
+
+Configuración base:
 
 ```json
 {
-  "bot": {
-    "activity_message": "Local knowledge assistant",
-    "split_message_limit": 1900
-  },
-  "knowledge_base": {
-    "knowledge_dir": "./knowledge_base",
-    "db_dir": "./chroma_db",
-    "collection_name": "discord_rag_knowledge"
-  },
-  "retrieval": {
-    "top_k": 3
-  },
-  "indexing": {
-    "chunk_size": 1200,
-    "chunk_overlap": 150
-  },
-  "ollama": {
-    "base_url": "http://localhost:11434",
-    "chat_model": "qwen2.5:1.5b",
-    "embedding_model": "embeddinggemma",
-    "temperature": 0.2,
-    "num_thread": 3,
-    "num_predict": 850
-  },
-  "prompts": {
-    "system_prompt": "Eres un asistente útil, claro y preciso. Responde usando el contexto recuperado de la base de conocimiento. Si la información no aparece en el contexto, dilo claramente y no inventes datos."
-  }
+    "bot": {
+        "activity_message": "Base de conocimiento local",
+        "split_message_limit": 1900
+    },
+    "knowledge_base": {
+        "knowledge_dir": "./knowledge_base",
+        "db_dir": "./chroma_db",
+        "collection_name": "discord_rag_knowledge"
+    },
+    "retrieval": {
+        "top_k": 3
+    },
+    "indexing": {
+        "chunk_size": 1200,
+        "chunk_overlap": 150
+    },
+    "ollama": {
+        "base_url": "http://localhost:11434",
+        "chat_model": "qwen2.5:1.5b",
+        "embedding_model": "embeddinggemma",
+        "temperature": 0.2,
+        "num_thread": 3,
+        "num_predict": 850
+    },
+    "prompts": {
+        "system_prompt": "Eres un asistente útil, claro y preciso. Responde usando el contexto recuperado de la base de conocimiento. Si la información no aparece en el contexto, dilo claramente y no inventes datos."
+    }
 }
 ```
 
----
+## Qué puedes cambiar en `config.json`
 
-## Explicación de `config.json`
+`bot`:
 
-### `bot`
+* `activity_message`: texto de actividad del bot en Discord.
+* `split_message_limit`: límite usado para dividir respuestas largas. Debe ser menor o igual que 2000.
 
-Opciones generales del bot.
+`knowledge_base`:
 
-* `activity_message`: texto que aparecerá como actividad del bot
-* `split_message_limit`: límite de caracteres por bloque antes de dividir la respuesta
+* `knowledge_dir`: carpeta con tus documentos.
+* `db_dir`: carpeta donde se guarda ChromaDB.
+* `collection_name`: nombre interno de la colección.
 
-### `knowledge_base`
+Las rutas deben ser relativas al proyecto, por ejemplo `./knowledge_base`.
 
-Configuración de la base de conocimiento.
+`retrieval`:
 
-* `knowledge_dir`: carpeta donde estarán tus documentos
-* `db_dir`: carpeta donde se guardará ChromaDB
-* `collection_name`: nombre interno de la colección vectorial
+* `top_k`: número de fragmentos recuperados por pregunta.
 
-### `retrieval`
+`indexing`:
 
-Configuración de recuperación semántica.
+* `chunk_size`: tamaño aproximado de cada fragmento.
+* `chunk_overlap`: solape entre fragmentos para no perder contexto.
 
-* `top_k`: número de fragmentos que se recuperan antes de generar la respuesta
+`ollama`:
 
-### `indexing`
+* `base_url`: URL local de Ollama.
+* `chat_model`: modelo que genera respuestas.
+* `embedding_model`: modelo que convierte textos en embeddings.
+* `temperature`: creatividad de la respuesta.
+* `num_thread`: hilos de CPU que puede usar Ollama.
+* `num_predict`: longitud máxima aproximada de respuesta.
 
-Configuración de indexación y fragmentación del contenido.
+`prompts`:
 
-* `chunk_size`: tamaño máximo aproximado de cada fragmento
-* `chunk_overlap`: solape entre fragmentos consecutivos
+* `system_prompt`: instrucción principal del asistente.
 
-### `ollama`
+Si cambias `embedding_model`, vuelve a ejecutar `/sync_knowledge`. Si cambias solo `chat_model` o el prompt, no necesitas reindexar.
 
-Configuración del motor local.
+## Añadir documentos
 
-* `base_url`: dirección donde corre Ollama
-* `chat_model`: modelo de chat que genera la respuesta final
-* `embedding_model`: modelo usado para generar embeddings
-* `temperature`: nivel de creatividad
-* `num_thread`: número de hilos de CPU permitidos
-* `num_predict`: longitud máxima aproximada de la respuesta
-
-### `prompts`
-
-Comportamiento general del asistente.
-
-* `system_prompt`: instrucción principal que guía el estilo y el comportamiento del bot
-
----
-
-## Añadir documentos a la base de conocimiento
-
-Guarda tus archivos dentro de:
+Guarda tus archivos en:
 
 ```text
 knowledge_base/
 ```
 
-Actualmente el proyecto está preparado para leer:
+Formatos soportados:
 
 * `.md`
 * `.txt`
 
-Puedes organizarlos en subcarpetas.
-
-Ejemplo:
+Puedes usar subcarpetas:
 
 ```text
 knowledge_base/
-├─ minecraft/
-│  ├─ biomas.md
-│  └─ mobs.md
-├─ reglas/
-│  └─ normas.txt
+├─ guias/
+│  ├─ instalacion.md
+│  └─ mantenimiento.md
+├─ normas/
+│  └─ servidor.txt
 └─ faq.md
 ```
 
----
+Los archivos deben estar guardados en UTF-8.
 
-## Cómo crear el bot en Discord y conseguir el token
+## Arrancar el bot
 
-Esta parte es importante porque sin ella no podrás arrancar el proyecto.
-
-### 1) Entrar en el portal de desarrolladores
-
-Entra al **Discord Developer Portal** con tu cuenta de Discord.
-
-### 2) Crear una nueva aplicación
-
-* Pulsa en **New Application**
-* Ponle un nombre
-* Crea la aplicación
-
-La aplicación es el contenedor principal del proyecto dentro de Discord.
-
-### 3) Crear el bot dentro de la aplicación
-
-Dentro de tu aplicación:
-
-* Ve al apartado **Bot**
-* Crea el bot si todavía no está creado
-
-Ahí es donde tendrás el usuario bot real que se conectará a Discord.
-
-### 4) Obtener el token
-
-En la pestaña **Bot** encontrarás el token del bot.
-
-Ese token es el que debes copiar en tu archivo `.env`:
-
-```env
-DISCORD_TOKEN=tu_token_real_aqui
-```
-Si regeneras el token, tendrás que actualizar también tu archivo `.env`.
-
-
-### 5) Trata el token como una contraseña
-
-Muy importante:
-
-* no lo subas a GitHub
-* no lo pegues en capturas
-* no lo compartas con nadie
-* si crees que se ha filtrado, regénéralo desde el portal
-
----
-
-## Cómo invitar el bot a tu servidor
-
-Después de crear el bot, tienes que invitarlo a un servidor donde tengas permisos.
-
-### 1) Ir a la sección de instalación / OAuth2
-
-Dentro del portal de desarrolladores, ve a la sección relacionada con **OAuth2** o la instalación de la aplicación.
-
-### 2) Seleccionar los scopes necesarios
-
-Asegúrate de incluir al menos estos scopes:
-
-* `bot`
-* `applications.commands`
-
-Esto es importante porque:
-
-* `bot` permite añadir el bot al servidor
-* `applications.commands` permite usar slash commands como `/ai` y `/sync_knowledge`
-
-### 3) Seleccionar permisos recomendados
-
-Permisos recomendados para este proyecto:
-
-* **View Channels**
-* **Send Messages**
-* **Read Message History**
-
-Con eso suele ser suficiente para empezar.
-
-### 4) Generar la URL e invitar el bot
-
-Genera la URL de invitación, ábrela en el navegador y añade el bot al servidor deseado.
-
----
-
-## Arranque del proyecto
-
-### 1) Iniciar Ollama
-
-Asegúrate de que Ollama esté funcionando en tu sistema.
-
-### 2) Ejecutar el bot
+Asegúrate de que Ollama está activo y ejecuta:
 
 ```bash
 python bot.py
 ```
 
-Si todo está bien configurado, el bot arrancará y sincronizará sus slash commands.
+Al arrancar, el bot sincroniza los slash commands con Discord, pero no indexa la base de conocimiento.
 
----
+## Uso en Discord
 
-## Primer uso dentro de Discord
+### 1. Indexar documentos
 
-### 1) Indexar la base de conocimiento
-
-Antes de hacer preguntas, debes indexar tus documentos.
-
-Usa este comando:
+Un administrador debe ejecutar:
 
 ```text
 /sync_knowledge
@@ -417,69 +327,54 @@ Usa este comando:
 
 Este comando:
 
-* borra la colección anterior
-* vuelve a leer los documentos de `knowledge_base/`
-* genera los embeddings
-* reconstruye la base vectorial
+* Lee los archivos `.md` y `.txt`.
+* Divide el contenido en fragmentos.
+* Genera embeddings con Ollama.
+* Recrea la colección de ChromaDB.
+* Limpia la caché de respuestas.
 
-### 2) Hacer preguntas
-
-Después de indexar, ya puedes consultar al bot:
-
-```text
-/ai pregunta: ¿Tu pregunta aquí?
-```
-
-Ejemplo:
+### 2. Hacer preguntas
 
 ```text
-/ai pregunta: ¿Cómo funciona un beacon?
+/ai pregunta: ¿Qué pasos indica la guía de instalación?
 ```
 
----
+Si el sistema está ocupado, el bot muestra que la pregunta está en cola. Cuando le toque, mostrará que está procesando.
 
-## Comportamiento del sistema
+## Hardware modesto
 
-El bot está diseñado para no saturar la máquina, especialmente en hardware modesto.
+El proyecto está pensado para equipos pequeños o mini PC.
 
-Características importantes:
+Recomendaciones:
 
-* solo procesa una petición pesada a la vez
-* usa una cola visible para el usuario si ya hay otra solicitud en marcha
-* informa con estados intermedios
-* divide mensajes largos para no superar el límite de Discord
-* guarda respuestas simples en caché para repetir menos trabajo
-* no indexa automáticamente al arrancar
-* permite ajustar el uso de CPU desde `config.json`
+* Usa modelos de chat pequeños al empezar.
+* Mantén `top_k` bajo, por ejemplo `3`.
+* Mantén `chunk_size` alrededor de `1000` a `1500`.
+* Ajusta `num_thread` para dejar margen al sistema.
+* Evita procesar varias generaciones a la vez. El bot ya usa una cola simple para esto.
 
----
+## Despliegue con systemd
 
-## Despliegue permanente con systemd en Linux
-
-El proyecto incluye un ejemplo de servicio en:
+El repo incluye una plantilla en:
 
 ```text
 deployment/discord-rag-bot.service
 ```
 
-### Qué tienes que editar en ese archivo
-
-Debes cambiar:
+Edita estos campos antes de instalarla:
 
 * `User`
 * `Group`
 * `WorkingDirectory`
 * `ExecStart`
 
-para que coincidan con tu usuario y con la ruta real de tu proyecto.
-
-### Ejemplo típico
+Ejemplo:
 
 ```ini
 [Unit]
 Description=Discord RAG Bot
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -487,7 +382,7 @@ User=samuel
 Group=samuel
 WorkingDirectory=/home/samuel/discord-rag-bot
 ExecStart=/home/samuel/discord-rag-bot/venv/bin/python /home/samuel/discord-rag-bot/bot.py
-Restart=always
+Restart=on-failure
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
 
@@ -495,72 +390,29 @@ Environment=PYTHONUNBUFFERED=1
 WantedBy=multi-user.target
 ```
 
-### Pasos para activarlo
-
-#### 1) Copiar el archivo del servicio
+Instalar y arrancar:
 
 ```bash
 sudo cp deployment/discord-rag-bot.service /etc/systemd/system/discord-rag-bot.service
-```
-
-#### 2) Recargar systemd
-
-```bash
 sudo systemctl daemon-reload
-```
-
-#### 3) Habilitar el servicio al arrancar
-
-```bash
 sudo systemctl enable discord-rag-bot
-```
-
-#### 4) Iniciar el servicio
-
-```bash
 sudo systemctl start discord-rag-bot
 ```
 
-#### 5) Ver el estado
+Ver estado y logs:
 
 ```bash
 sudo systemctl status discord-rag-bot
+journalctl -u discord-rag-bot -f
 ```
 
-#### 6) Reiniciarlo después de cambios
+## Archivos que normalmente tocarás
 
-```bash
-sudo systemctl restart discord-rag-bot
-```
+* `.env`: token de Discord.
+* `config.json`: modelos, rutas, prompt y límites.
+* `knowledge_base/`: tus documentos.
 
----
-
-## Actualizar la base de conocimiento
-
-Cada vez que:
-
-* añadas archivos nuevos
-* borres archivos
-* modifiques contenido dentro de `knowledge_base/`
-
-deberás volver a ejecutar:
-
-```text
-/sync_knowledge
-```
-
----
-
-## Buenas prácticas
-
-* No subas `.env`
-* No subas tu `config.json` real si contiene valores personalizados de tu máquina
-* No subas `chroma_db/`
-* Mantén separados el modelo de chat y el modelo de embeddings
-* Ajusta `num_thread` según el hardware disponible
-* Si usas un mini PC modesto, empieza con valores conservadores
-
----
+Normalmente no necesitas modificar `bot.py`, `config.py`, `indexer.py`, `rag.py` ni `utils.py`.
 
 ## Solución de problemas
 
@@ -568,58 +420,49 @@ deberás volver a ejecutar:
 
 Revisa:
 
-* que `.env` exista
-* que `DISCORD_TOKEN` esté bien escrito
-* que `config.json` exista
-* que Ollama esté funcionando
-* que hayas instalado las dependencias
+* Que existe `.env`.
+* Que `DISCORD_TOKEN` está definido.
+* Que existe `config.json`.
+* Que `config.json` es JSON válido.
+* Que las dependencias están instaladas.
 
-### El bot arranca pero no responde bien
+### El bot responde que no hay documentos indexados
 
 Revisa:
 
-* que hayas ejecutado `/sync_knowledge`
-* que los documentos estén en `knowledge_base/`
-* que los archivos sean `.md` o `.txt`
-* que el modelo de embeddings esté descargado
+* Que hay archivos `.md` o `.txt` en `knowledge_base/`.
+* Que ejecutaste `/sync_knowledge`.
+* Que el modelo de embeddings está descargado en Ollama.
+
+### Falla la sincronización
+
+Revisa:
+
+* Que Ollama está iniciado.
+* Que `embedding_model` existe localmente.
+* Que los documentos están en UTF-8.
+* Que `chunk_overlap` es menor que `chunk_size`.
 
 ### Los comandos no aparecen en Discord
 
 Revisa:
 
-* que hayas invitado el bot con el scope `applications.commands`
-* que el bot esté realmente dentro del servidor
-* que el token corresponda al bot correcto
+* Que invitaste el bot con `applications.commands`.
+* Que el bot está dentro del servidor.
+* Que el token pertenece al bot correcto.
+* Que el bot se ha iniciado al menos una vez.
 
----
+## Notas de publicación
 
-## Objetivo del proyecto
+No subas a GitHub:
 
-Este repositorio está pensado como una base general para crear bots RAG de Discord alimentados por conocimiento local.
+* `.env`
+* `config.json`
+* `chroma_db/`
+* documentos privados
 
-Se puede adaptar a muchos casos:
-
-* Minecraft
-* documentación técnica
-* manuales internos
-* normas de servidores
-* apuntes
-* preguntas frecuentes
-* wikis temáticas
-
----
-
-## Ideas futuras
-
-* Soporte para PDF y DOCX
-* Citas de fuentes en las respuestas
-* Re-ranking de resultados
-* Soporte para varias colecciones
-* Interfaz web de administración
-* Logs y métricas más avanzadas
-
----
+El repo está preparado para ser reutilizable con cualquier temática: documentación técnica, normas de servidores, wikis, manuales, apuntes o preguntas frecuentes.
 
 ## Licencia
 
-Este proyecto está licenciado bajo la licencia MIT. Consulta el archivo `LICENSE` para más información.
+MIT. Consulta el archivo `LICENSE`.

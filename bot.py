@@ -20,6 +20,7 @@ except Exception as error:
 response_cache = {}
 processing_lock = asyncio.Lock()
 waiting_requests = 0
+DISCORD_MESSAGE_LIMIT = 2000
 
 
 def build_final_message(question: str, answer: str) -> str:
@@ -31,9 +32,12 @@ async def send_split_response(
     content: str,
     continue_note: str = "\n\n*(Sigue abajo...)*",
 ) -> None:
+    message_limit = min(settings["bot"]["split_message_limit"], DISCORD_MESSAGE_LIMIT)
+    split_limit = max(1, message_limit - len(continue_note))
+
     parts = split_message(
         text=content,
-        limit=settings["bot"]["split_message_limit"],
+        limit=split_limit,
     )
 
     if not parts:
@@ -140,11 +144,22 @@ async def ai_command(interaction: discord.Interaction, pregunta: str):
             )
 
             if not result["has_context"]:
-                await interaction.edit_original_response(
-                    content=(
+                if result.get("needs_sync"):
+                    message = (
                         f"**Pregunta:** {pregunta}\n\n"
-                        "No he encontrado información relevante en la base de conocimiento."
+                        "La base de conocimiento todavía no tiene documentos "
+                        "indexados. Añade archivos `.md` o `.txt` y ejecuta "
+                        "`/sync_knowledge` antes de preguntar."
                     )
+                else:
+                    message = (
+                        f"**Pregunta:** {pregunta}\n\n"
+                        "No he encontrado información relevante en la base de "
+                        "conocimiento."
+                    )
+
+                await interaction.edit_original_response(
+                    content=message
                 )
                 return
 
@@ -171,7 +186,9 @@ async def ai_command(interaction: discord.Interaction, pregunta: str):
             await interaction.edit_original_response(
                 content=(
                     f"**Pregunta:** {pregunta}\n\n"
-                    "❌ Ha ocurrido un error técnico al generar la respuesta."
+                    "❌ Ha ocurrido un error técnico al generar la respuesta. "
+                    "Revisa que Ollama esté iniciado, que los modelos estén "
+                    "descargados y que la base de conocimiento esté sincronizada."
                 )
             )
 
@@ -217,13 +234,20 @@ async def sync_knowledge_command(interaction: discord.Interaction):
             files_indexed = result["files_indexed"]
             chunks_indexed = result["chunks_indexed"]
 
-            await interaction.edit_original_response(
-                content=(
+            if files_indexed == 0:
+                message = (
+                    "⚠️ **Sincronización completada sin documentos**\n"
+                    "No se encontraron archivos `.md` o `.txt` en la carpeta "
+                    "de conocimiento."
+                )
+            else:
+                message = (
                     "✅ **Sincronización completada**\n"
                     f"Archivos indexados: **{files_indexed}**\n"
                     f"Fragmentos indexados: **{chunks_indexed}**"
                 )
-            )
+
+            await interaction.edit_original_response(content=message)
 
             print(
                 f"✅ Sincronización completada: "
@@ -233,7 +257,11 @@ async def sync_knowledge_command(interaction: discord.Interaction):
         except Exception as error:
             print(f"❌ Error durante la sincronización: {error}")
             await interaction.edit_original_response(
-                content=f"❌ Error durante la sincronización: {error}"
+                content=(
+                    "❌ Error durante la sincronización. Revisa que Ollama esté "
+                    "iniciado y que el modelo de embeddings esté descargado.\n\n"
+                    f"Detalle: {error}"
+                )
             )
 
 

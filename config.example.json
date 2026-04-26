@@ -1,6 +1,6 @@
 {
     "bot": {
-        "activity_message": "Local knowledge assistant",
+        "activity_message": "Base de conocimiento local",
         "split_message_limit": 1900
     },
     "knowledge_base": {

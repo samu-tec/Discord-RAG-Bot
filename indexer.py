@@ -53,14 +53,22 @@ def load_source_documents(knowledge_dir: Path) -> list[dict]:
         if file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
             continue
 
-        content = file_path.read_text(encoding="utf-8").strip()
+        relative_path = file_path.relative_to(knowledge_dir).as_posix()
+
+        try:
+            content = file_path.read_text(encoding="utf-8").strip()
+        except UnicodeDecodeError as error:
+            raise ValueError(
+                f"No se pudo leer {relative_path}. Guarda el archivo en UTF-8."
+            ) from error
+
         if not content:
             continue
 
         documents.append(
             {
                 "source": file_path,
-                "relative_path": file_path.relative_to(knowledge_dir).as_posix(),
+                "relative_path": relative_path,
                 "content": content,
             }
         )
