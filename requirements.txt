@@ -1,4 +1,4 @@
 discord.py>=2.3,<3
 ollama>=0.4,<1
-chromadb>=0.5,<2
+chromadb>=1.0,<2
 python-dotenv>=1,<2
