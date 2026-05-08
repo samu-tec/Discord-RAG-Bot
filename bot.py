@@ -71,9 +71,7 @@ class AIBot(commands.Bot):
         )
 
     async def setup_hook(self):
-        print("🔗 Sincronizando comandos con Discord...")
-        await self.tree.sync()
-        print("✅ Comandos sincronizados correctamente.")
+        pass
 
 
 bot = AIBot()
@@ -263,6 +261,17 @@ async def sync_knowledge_command(interaction: discord.Interaction):
                     f"Detalle: {error}"
                 )
             )
+
+
+@bot.tree.command(
+    name="sync_commands",
+    description="Sincroniza los slash commands con Discord. Úsalo solo si añades o cambias comandos."
+)
+@app_commands.default_permissions(administrator=True)
+async def sync_commands_command(interaction: discord.Interaction):
+    await interaction.response.send_message("🔄 **Sincronizando comandos...**")
+    await bot.tree.sync()
+    await interaction.edit_original_response(content="✅ **Comandos sincronizados correctamente.**")
 
 
 if __name__ == "__main__":

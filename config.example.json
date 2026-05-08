@@ -18,7 +18,7 @@
     "ollama": {
         "base_url": "http://localhost:11434",
         "chat_model": "qwen2.5:1.5b",
-        "embedding_model": "embeddinggemma",
+        "embedding_model": "nomic-embed-text",
         "temperature": 0.2,
         "num_thread": 3,
         "num_predict": 850

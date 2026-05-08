@@ -121,7 +121,7 @@ Descarga el modelo de chat y el modelo de embeddings definidos en `config.exampl
 
 ```bash
 ollama pull qwen2.5:1.5b
-ollama pull embeddinggemma
+ollama pull nomic-embed-text
 ```
 
 Puedes cambiar ambos modelos en `config.json` sin modificar código.
@@ -313,7 +313,44 @@ Asegúrate de que Ollama está activo y ejecuta:
 python bot.py
 ```
 
-Al arrancar, el bot sincroniza los slash commands con Discord, pero no indexa la base de conocimiento.
+El bot no indexa la base de conocimiento al arrancar ni sincroniza slash commands automáticamente. Ambas operaciones son manuales y bajo demanda.
+
+## Sincronización de slash commands
+
+Los slash commands solo necesitan registrarse en Discord una vez, o cuando añadas, cambies o elimines comandos. El bot no los sincroniza en cada arranque para no consumir el límite diario de la API de Discord (2 sincronizaciones globales por día).
+
+### Primera puesta en marcha
+
+Ejecuta este script una sola vez tras instalar el bot por primera vez o tras añadir comandos nuevos:
+
+```bash
+cd discord-rag-bot && venv/bin/python -c "
+import asyncio, discord
+from discord.ext import commands
+from config import load_settings
+
+settings = load_settings()
+
+async def sync():
+    bot = commands.Bot(command_prefix='!', intents=discord.Intents.default())
+    await bot.login(settings['discord_token'])
+    await bot.tree.sync()
+    await bot.close()
+    print('Comandos sincronizados.')
+
+asyncio.run(sync())
+"
+```
+
+### Sincronizaciones posteriores
+
+Usa el comando de Discord (solo administrador):
+
+```text
+/sync_commands
+```
+
+Úsalo únicamente cuando hayas cambiado los comandos del bot. En uso normal no es necesario.
 
 ## Uso en Discord
 
@@ -361,20 +398,16 @@ El repo incluye una plantilla en:
 deployment/discord-rag-bot.service
 ```
 
-Edita estos campos antes de instalarla:
+Edita la plantilla con tus rutas y usuario antes de instalarla. Usa la versión de sistema (`/etc/systemd/system/`), no la de usuario, para que el bot arranque correctamente en el boot sin depender de sesión activa.
 
-* `User`
-* `Group`
-* `WorkingDirectory`
-* `ExecStart`
-
-Ejemplo:
+Ejemplo con usuario `samuel`:
 
 ```ini
 [Unit]
 Description=Discord RAG Bot
-After=network-online.target
+After=network-online.target ollama.service
 Wants=network-online.target
+Requires=ollama.service
 
 [Service]
 Type=simple
@@ -383,7 +416,7 @@ Group=samuel
 WorkingDirectory=/home/samuel/discord-rag-bot
 ExecStart=/home/samuel/discord-rag-bot/venv/bin/python /home/samuel/discord-rag-bot/bot.py
 Restart=on-failure
-RestartSec=5
+RestartSec=10
 Environment=PYTHONUNBUFFERED=1
 
 [Install]
@@ -405,6 +438,49 @@ Ver estado y logs:
 sudo systemctl status discord-rag-bot
 journalctl -u discord-rag-bot -f
 ```
+
+## Actualizar el bot
+
+El repo incluye un script para actualizar el bot cuando quieras aplicar cambios del repositorio:
+
+```bash
+nano ~/discord-rag-bot/update.sh
+```
+
+Contenido del script:
+
+```bash
+#!/bin/bash
+set -e
+
+cd /home/samuel/discord-rag-bot
+
+echo "Descargando cambios..."
+git pull
+
+echo "Actualizando dependencias..."
+venv/bin/pip install -r requirements.txt -q
+
+echo "Reiniciando bot..."
+sudo systemctl restart discord-rag-bot
+
+echo "Listo."
+sudo systemctl status discord-rag-bot --no-pager
+```
+
+Hazlo ejecutable:
+
+```bash
+chmod +x ~/discord-rag-bot/update.sh
+```
+
+Ejecútalo cuando quieras actualizar:
+
+```bash
+~/discord-rag-bot/update.sh
+```
+
+Si tras actualizar has añadido o cambiado comandos de Discord, ejecuta `/sync_commands` desde Discord una vez terminada la actualización.
 
 ## Archivos que normalmente tocarás
 
@@ -445,12 +521,12 @@ Revisa:
 
 ### Los comandos no aparecen en Discord
 
-Revisa:
+Los comandos no se sincronizan automáticamente al arrancar. Revisa:
 
-* Que invitaste el bot con `applications.commands`.
+* Que ejecutaste el script de sincronización inicial o usaste `/sync_commands`.
+* Que invitaste el bot con el scope `applications.commands`.
 * Que el bot está dentro del servidor.
 * Que el token pertenece al bot correcto.
-* Que el bot se ha iniciado al menos una vez.
 
 ## Notas de publicación
 
