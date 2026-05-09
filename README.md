@@ -313,44 +313,7 @@ Asegúrate de que Ollama está activo y ejecuta:
 python bot.py
 ```
 
-El bot no indexa la base de conocimiento al arrancar ni sincroniza slash commands automáticamente. Ambas operaciones son manuales y bajo demanda.
-
-## Sincronización de slash commands
-
-Los slash commands solo necesitan registrarse en Discord una vez, o cuando añadas, cambies o elimines comandos. El bot no los sincroniza en cada arranque para no consumir el límite diario de la API de Discord (2 sincronizaciones globales por día).
-
-### Primera puesta en marcha
-
-Ejecuta este script una sola vez tras instalar el bot por primera vez o tras añadir comandos nuevos:
-
-```bash
-cd discord-rag-bot && venv/bin/python -c "
-import asyncio, discord
-from discord.ext import commands
-from config import load_settings
-
-settings = load_settings()
-
-async def sync():
-    bot = commands.Bot(command_prefix='!', intents=discord.Intents.default())
-    await bot.login(settings['discord_token'])
-    await bot.tree.sync()
-    await bot.close()
-    print('Comandos sincronizados.')
-
-asyncio.run(sync())
-"
-```
-
-### Sincronizaciones posteriores
-
-Usa el comando de Discord (solo administrador):
-
-```text
-/sync_commands
-```
-
-Úsalo únicamente cuando hayas cambiado los comandos del bot. En uso normal no es necesario.
+Al arrancar, el bot sincroniza automáticamente los slash commands con Discord y queda listo para recibir preguntas. No indexa la base de conocimiento al arrancar — eso se hace manualmente con `/sync_knowledge`.
 
 ## Uso en Discord
 
@@ -521,12 +484,12 @@ Revisa:
 
 ### Los comandos no aparecen en Discord
 
-Los comandos no se sincronizan automáticamente al arrancar. Revisa:
+Revisa:
 
-* Que ejecutaste el script de sincronización inicial o usaste `/sync_commands`.
 * Que invitaste el bot con el scope `applications.commands`.
 * Que el bot está dentro del servidor.
 * Que el token pertenece al bot correcto.
+* Que el bot se ha iniciado al menos una vez (la sincronización ocurre al arrancar).
 
 ## Notas de publicación
 
