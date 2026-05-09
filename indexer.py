@@ -5,7 +5,12 @@ from chromadb.utils.embedding_functions.ollama_embedding_function import (
     OllamaEmbeddingFunction,
 )
 
+# Solo se indexan archivos de texto plano. Otros formatos (PDF, docx) no están
+# soportados de momento.
 SUPPORTED_EXTENSIONS = {".md", ".txt"}
+
+# Valores por defecto si el config.json no los define. Los valores reales se
+# leen de settings["indexing"] al sincronizar.
 DEFAULT_CHUNK_SIZE = 1200
 DEFAULT_CHUNK_OVERLAP = 150
 
@@ -44,6 +49,12 @@ def recreate_collection(client, collection_name: str, embedding_function=None):
 
 
 def load_source_documents(knowledge_dir: Path) -> list[dict]:
+    """Lee recursivamente todos los archivos .md y .txt de la carpeta dada.
+
+    Devuelve una lista de diccionarios con ``source``, ``relative_path`` y
+    ``content``. Los archivos vacíos se omiten. Los archivos que no estén en
+    UTF-8 lanzan ValueError con el nombre del archivo problemático.
+    """
     documents = []
 
     for file_path in sorted(knowledge_dir.rglob("*")):
@@ -81,6 +92,13 @@ def chunk_text(
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     overlap: int = DEFAULT_CHUNK_OVERLAP,
 ) -> list[str]:
+    """Divide un texto en fragmentos de ``chunk_size`` caracteres con solape.
+
+    El solape (overlap) sirve para no perder contexto entre fragmentos
+    consecutivos: las últimas ``overlap`` letras de un chunk aparecen también
+    al inicio del siguiente. Si el solape es mayor o igual al tamaño se
+    reduce a un cuarto del tamaño para evitar bucles infinitos.
+    """
     text = text.strip()
     if not text:
         return []
@@ -137,6 +155,16 @@ def build_records(
 
 
 def sync_knowledge_base(settings: dict) -> dict:
+    """Recrea la colección de ChromaDB con los archivos de la carpeta knowledge_base.
+
+    Borra la colección existente y la regenera desde cero para garantizar que
+    no quedan fragmentos de archivos antiguos. Devuelve un diccionario con el
+    número de archivos y fragmentos indexados, además de la colección lista
+    para usar.
+
+    Esta función es síncrona y puede tardar varios segundos. El bot la llama
+    desde un executor para no bloquear el loop de asyncio.
+    """
     knowledge_dir = settings["paths"]["knowledge_dir"]
     db_dir = settings["paths"]["db_dir"]
     collection_name = settings["knowledge_base"]["collection_name"]

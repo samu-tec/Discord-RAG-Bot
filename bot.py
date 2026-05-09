@@ -167,6 +167,8 @@ async def on_app_command_error(
     )
 
     try:
+        # ephemeral=True hace que solo lo vea quien ejecutó el comando, así no
+        # ensuciamos el canal con errores visibles para todos.
         if interaction.response.is_done():
             await interaction.followup.send(content=error_message, ephemeral=True)
         else:
@@ -194,31 +196,33 @@ async def ai_command(interaction: discord.Interaction, pregunta: str) -> None:
         await send_split_response(interaction, final_message)
         return
 
-    # Si ya hay una generación en curso entramos en cola y avisamos al usuario.
-    # La respuesta inicial debe enviarse en menos de 3 segundos o el token de
-    # interacción se invalida (límite de Discord).
-    system_busy = processing_lock.locked()
+    # Respuesta inicial: debe enviarse en menos de 3 segundos o el token de
+    # interacción se invalida (límite de Discord). Si hay otra generación en
+    # curso mostramos la posición en la cola; si no, vamos directos al estado
+    # de "Procesando..." para que el usuario no vea un mensaje fugaz.
     queue_position: Optional[int] = None
 
-    if system_busy:
+    if processing_lock.locked():
         waiting_requests += 1
         queue_position = waiting_requests
         await interaction.response.send_message(
-            f"⏳ **En cola...** (Posición #{queue_position})\n"
+            f"⏳ **En cola** (posición #{queue_position})\n"
             f"*Tu pregunta:* {pregunta}"
         )
     else:
         await interaction.response.send_message(
-            f"🔍 **Buscando en la base de conocimiento para:** *{pregunta}*"
+            f"⚙️ **Procesando:** *{pregunta}*"
         )
 
     async with processing_lock:
+        # Si veníamos de la cola, actualizamos el mensaje para reflejar que
+        # ya estamos procesando (la transición "En cola" → "Procesando" es
+        # informativa porque entre ambos estados pasa tiempo real).
         if queue_position is not None:
             waiting_requests -= 1
-
-        await interaction.edit_original_response(
-            content=f"⚙️ **Procesando:** *{pregunta}*"
-        )
+            await interaction.edit_original_response(
+                content=f"⚙️ **Procesando:** *{pregunta}*"
+            )
 
         try:
             logger.info("Generando respuesta...")
@@ -237,48 +241,50 @@ async def ai_command(interaction: discord.Interaction, pregunta: str) -> None:
 
             if not result["has_context"]:
                 if result.get("needs_sync"):
-                    message = (
-                        f"**Pregunta:** {pregunta}\n\n"
+                    error_text = (
                         "La base de conocimiento todavía no tiene documentos "
                         "indexados. Añade archivos `.md` o `.txt` y ejecuta "
                         "`/sync_knowledge` antes de preguntar."
                     )
                 else:
-                    message = (
-                        f"**Pregunta:** {pregunta}\n\n"
+                    error_text = (
                         "No he encontrado información relevante en la base de "
                         "conocimiento."
                     )
 
-                await interaction.edit_original_response(content=message)
+                await interaction.edit_original_response(
+                    content=build_final_message(pregunta, error_text)
+                )
                 return
 
             answer = result["answer"].strip()
 
             if not answer:
                 await interaction.edit_original_response(
-                    content=(
-                        f"**Pregunta:** {pregunta}\n\n"
-                        "No se ha podido generar una respuesta válida."
+                    content=build_final_message(
+                        pregunta,
+                        "No se ha podido generar una respuesta válida.",
                     )
                 )
                 return
 
             response_cache.set(cache_id, answer)
-
-            final_message = build_final_message(pregunta, answer)
-            await send_split_response(interaction, final_message)
+            await send_split_response(
+                interaction,
+                build_final_message(pregunta, answer),
+            )
 
             logger.info("Respuesta entregada correctamente.")
 
         except Exception:
+            # Detalles técnicos al log para que el admin pueda diagnosticar.
+            # Al usuario le mostramos un mensaje genérico y amable.
             logger.exception("Error durante la generación de respuesta")
             await interaction.edit_original_response(
-                content=(
-                    f"**Pregunta:** {pregunta}\n\n"
-                    "❌ Ha ocurrido un error técnico al generar la respuesta. "
-                    "Revisa que Ollama esté iniciado, que los modelos estén "
-                    "descargados y que la base de conocimiento esté sincronizada."
+                content=build_final_message(
+                    pregunta,
+                    "⚠️ El servicio no está disponible en este momento. "
+                    "Inténtalo de nuevo en unos minutos.",
                 )
             )
 
@@ -342,12 +348,14 @@ async def sync_knowledge_command(interaction: discord.Interaction) -> None:
             )
 
         except Exception as error:
+            # Aquí sí queremos detalles técnicos en el mensaje porque solo
+            # los admins pueden ejecutar /sync_knowledge.
             logger.exception("Error durante la sincronización")
             await interaction.edit_original_response(
                 content=(
-                    "❌ Error durante la sincronización. Revisa que Ollama esté "
-                    "iniciado y que el modelo de embeddings esté descargado.\n\n"
-                    f"Detalle: {error}"
+                    "❌ **Error durante la sincronización.**\n"
+                    "Comprueba los logs del servidor para más detalles.\n\n"
+                    f"`{error}`"
                 )
             )
 

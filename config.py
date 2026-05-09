@@ -5,10 +5,16 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+# Todas las rutas se resuelven respecto a la carpeta del proyecto, no al cwd
+# desde donde se lance python. Así el bot funciona igual al ejecutarlo desde
+# systemd, desde un IDE o desde la terminal.
 BASE_DIR = Path(__file__).resolve().parent
 ENV_FILE = BASE_DIR / ".env"
 CONFIG_FILE = BASE_DIR / "config.json"
 
+# Estructura mínima que debe tener config.json. Si falta cualquier clave de
+# este mapa, load_settings() falla en arranque con un mensaje claro indicando
+# qué falta exactamente.
 REQUIRED_KEYS = {
     "bot": ("activity_message", "split_message_limit"),
     "knowledge_base": ("knowledge_dir", "db_dir", "collection_name"),
@@ -115,6 +121,13 @@ def resolve_project_path(raw_path: str, field_name: str) -> Path:
 
 
 def load_settings():
+    """Carga y valida la configuración del bot.
+
+    Lee el token desde .env, el resto de opciones desde config.json, valida
+    que toda la estructura esté correcta y resuelve las rutas relativas a
+    rutas absolutas. Lanza una excepción con mensaje legible si algo falla,
+    para que el error en arranque sea fácil de diagnosticar.
+    """
     load_dotenv(ENV_FILE)
 
     discord_token = os.getenv("DISCORD_TOKEN")

@@ -4,6 +4,19 @@ Bot RAG para Discord configurable, capaz de responder preguntas usando una base 
 
 El proyecto está pensado para que una persona pueda clonarlo, ajustar `.env` y `config.json`, añadir sus documentos, ejecutar `/sync_knowledge` y empezar a usar `/ai` sin tocar el código.
 
+## Lo mínimo que tienes que cambiar
+
+Si solo te interesa poner el bot en marcha rápido, esto es lo único que **debes** modificar después de clonar el repo:
+
+| Archivo | Qué cambiar |
+| --- | --- |
+| `.env` | Pegar tu token de Discord (ver sección [Crear el bot en Discord](#crear-el-bot-en-discord)) |
+| `config.json` | Copia `config.example.json` y, como mínimo, pon en `ollama.chat_model` y `ollama.embedding_model` los modelos que tengas descargados en Ollama |
+| `knowledge_base/` | Añadir tus archivos `.md` o `.txt` con la información que el bot debe conocer |
+| `deployment/discord-rag-bot.service` | Solo si despliegas con systemd: cambiar `TU_USUARIO` y `/ruta/completa/a/discord-rag-bot` por los valores reales |
+
+Todo lo demás (comportamiento del bot, chunking, prompt, etc.) tiene valores por defecto razonables.
+
 ## Qué hace
 
 El bot responde en Discord a partir de documentos locales en formato `.md` y `.txt`.
@@ -146,13 +159,17 @@ Dentro de la aplicación, entra en **Bot** y crea el bot si todavía no existe.
 
 ### 4. Copiar el token
 
-En la sección **Bot**, copia el token y guárdalo en `.env`.
+En la sección **Bot**, pulsa **Reset Token**, copia el token nuevo y guárdalo en `.env` del proyecto:
+
+```env
+DISCORD_TOKEN=pega-aqui-tu-token
+```
 
 Trata el token como una contraseña:
 
-* No lo subas a GitHub.
-* No lo compartas.
-* Si se filtra, regénéralo en el portal de Discord.
+* No lo subas a GitHub (el `.gitignore` ya lo excluye, pero comprueba siempre antes de hacer push).
+* No lo compartas con nadie.
+* Si se filtra o sospechas que se ha expuesto, vuelve al portal y pulsa **Reset Token** otra vez. Después actualiza el `.env` y reinicia el bot.
 
 ### 5. Invitar el bot a tu servidor
 
@@ -205,7 +222,7 @@ Windows PowerShell:
 Copy-Item config.example.json config.json
 ```
 
-Configuración base:
+Configuración base (copiada de `config.example.json`):
 
 ```json
 {
@@ -228,7 +245,7 @@ Configuración base:
     "ollama": {
         "base_url": "http://localhost:11434",
         "chat_model": "qwen2.5:1.5b",
-        "embedding_model": "embeddinggemma",
+        "embedding_model": "nomic-embed-text",
         "temperature": 0.2,
         "num_thread": 3,
         "num_predict": 850
@@ -238,6 +255,8 @@ Configuración base:
     }
 }
 ```
+
+Si has descargado modelos diferentes en Ollama, cambia `chat_model` y `embedding_model` por los nombres exactos que aparezcan al ejecutar `ollama list`.
 
 ## Qué puedes cambiar en `config.json`
 
@@ -361,9 +380,14 @@ El repo incluye una plantilla en:
 deployment/discord-rag-bot.service
 ```
 
-Edita la plantilla con tus rutas y usuario antes de instalarla. Usa la versión de sistema (`/etc/systemd/system/`), no la de usuario, para que el bot arranque correctamente en el boot sin depender de sesión activa.
+La plantilla tiene **dos placeholders** que **debes** sustituir antes de instalarla:
 
-Ejemplo con usuario `samuel`:
+* `TU_USUARIO` → el nombre del usuario Linux que ejecutará el bot (ej. `samuel`)
+* `/ruta/completa/a/discord-rag-bot` → la ruta absoluta donde clonaste el repo (ej. `/home/samuel/discord-rag-bot`)
+
+Usa la ruta de sistema (`/etc/systemd/system/`), no la de usuario, para que el bot arranque automáticamente en el boot sin depender de sesión activa.
+
+Ejemplo ya completado con usuario `samuel`:
 
 ```ini
 [Unit]
@@ -404,13 +428,13 @@ journalctl -u discord-rag-bot -f
 
 ## Actualizar el bot
 
-El repo incluye un script para actualizar el bot cuando quieras aplicar cambios del repositorio:
+Para aplicar cambios del repositorio sin tener que escribir comandos manualmente cada vez, crea un script de actualización dentro del proyecto:
 
 ```bash
 nano ~/discord-rag-bot/update.sh
 ```
 
-Contenido del script:
+Pega el contenido siguiente (cambia `/home/samuel/discord-rag-bot` por la ruta donde tengas tu instalación):
 
 ```bash
 #!/bin/bash
@@ -443,7 +467,7 @@ Ejecútalo cuando quieras actualizar:
 ~/discord-rag-bot/update.sh
 ```
 
-Si tras actualizar has añadido o cambiado comandos de Discord, ejecuta `/sync_commands` desde Discord una vez terminada la actualización.
+Al reiniciar el servicio el bot vuelve a sincronizar los slash commands con Discord, así que si has añadido o cambiado comandos solo tienes que esperar (puede tardar hasta una hora en propagarse del lado de Discord la primera vez).
 
 ## Archivos que normalmente tocarás
 

@@ -1,12 +1,27 @@
 def normalize_query(text: str) -> str:
+    """Normaliza una pregunta para usarla como clave de caché.
+
+    Pasa a minúsculas y colapsa espacios consecutivos, así "¿Qué es X?" y
+    "¿qué  es x?" generan la misma clave y comparten respuesta cacheada.
+    """
     return " ".join(text.lower().strip().split())
 
 
 def split_hard(text: str, limit: int) -> list[str]:
+    """División de último recurso: corta el texto cada ``limit`` caracteres
+    sin respetar palabras. Solo se usa cuando una palabra única es más larga
+    que el límite (URLs muy largas, código, etc.)."""
     return [text[index:index + limit] for index in range(0, len(text), limit)]
 
 
 def split_message(text: str, limit: int = 1900) -> list[str]:
+    """Divide un texto largo en partes que respeten el límite de Discord.
+
+    Intenta partir respetando estructura, en este orden: por párrafos
+    (``\\n\\n``), por líneas (``\\n``), por palabras (espacios) y, como
+    último recurso, cortando palabras a la mitad. Esto hace que las
+    respuestas largas se sigan leyendo bien al dividirse en varios mensajes.
+    """
     if limit < 1:
         raise ValueError("El límite de caracteres debe ser mayor que 0.")
 
