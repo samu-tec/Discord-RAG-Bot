@@ -32,6 +32,10 @@ class OllamaEmbeddingFunction:
     procesa los textos en paralelo, lo que satura una CPU sin GPU. Aquí
     procesamos los textos uno a uno con un timeout amplio y respetando el
     límite de hilos configurado.
+
+    Implementa la interfaz que ChromaDB 1.0+ espera: ``__call__`` para
+    indexación y los alias ``embed_documents``/``embed_query`` que la API de
+    consultas usa internamente.
     """
 
     def __init__(
@@ -58,7 +62,14 @@ class OllamaEmbeddingFunction:
             embeddings.append(list(response["embedding"]))
         return embeddings
 
-    def name(self) -> str:
+    def embed_documents(self, input: list[str]) -> list[list[float]]:
+        return self(input)
+
+    def embed_query(self, input: list[str]) -> list[list[float]]:
+        return self(input)
+
+    @staticmethod
+    def name() -> str:
         return "ollama_local"
 
 
