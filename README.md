@@ -362,15 +362,51 @@ Si el sistema está ocupado, el bot muestra que la pregunta está en cola. Cuand
 
 ## Hardware modesto
 
-El proyecto está pensado para equipos pequeños o mini PC.
+El proyecto está pensado para equipos pequeños o mini PC sin GPU. El bot
+funciona en máquinas con CPU básica y 4-8 GB de RAM, aunque las respuestas
+serán más lentas.
 
-Recomendaciones:
+Recomendaciones de configuración:
 
-* Usa modelos de chat pequeños al empezar.
-* Mantén `top_k` bajo, por ejemplo `3`.
-* Mantén `chunk_size` alrededor de `1000` a `1500`.
-* Ajusta `num_thread` para dejar margen al sistema.
-* Evita procesar varias generaciones a la vez. El bot ya usa una cola simple para esto.
+* Usa modelos de chat pequeños (1B-3B parámetros) al empezar. `qwen2.5:1.5b`
+  es un buen punto de partida.
+* Mantén `top_k` bajo, por ejemplo `3`. Más fragmentos = prompt más largo =
+  generación más lenta.
+* Mantén `chunk_size` entre `1000` y `1500`. Trozos más pequeños generan
+  muchos chunks y la indexación tarda más.
+* Ajusta `num_thread` para dejar margen al sistema. Si tu CPU tiene 4 núcleos,
+  `3` deja uno libre para el sistema operativo y Discord.
+* Evita procesar varias generaciones a la vez. El bot ya usa una cola simple
+  para esto.
+
+### Tiempos esperables en hardware básico
+
+En un mini PC con CPU sin GPU (por ejemplo Intel i5 de 4ª-5ª generación,
+8 GB RAM):
+
+* `/sync_knowledge` con 5-10 archivos pequeños: **30 segundos a 2 minutos**.
+* `/sync_knowledge` con archivos largos y detallados: **5 a 15 minutos**.
+* Una pregunta con `/ai`: **20 a 60 segundos** según la longitud de la
+  respuesta.
+
+Durante `/sync_knowledge` el bot puede parecer congelado: es normal, los
+embeddings se generan uno a uno con timeouts amplios para no fallar en
+máquinas lentas. Si Discord muestra "interacción fallida" después de 15
+minutos, la sincronización **sigue ejecutándose en el servidor**: revisa
+`journalctl -u discord-rag-bot -f` para ver el progreso.
+
+### Si aún así falla la sincronización
+
+Si `/sync_knowledge` falla con `timed out`, prueba estos pasos en orden:
+
+1. Reduce el tamaño de tus archivos `.md` (divide los más largos en varios
+   archivos temáticos).
+2. Reduce `chunk_size` a `800` y `chunk_overlap` a `100` en `config.json`
+   para generar fragmentos más pequeños y rápidos de procesar.
+3. Cambia `embedding_model` a uno más ligero como `all-minilm` (descárgalo
+   con `ollama pull all-minilm`).
+4. Asegúrate de que no hay otros procesos pesados consumiendo CPU mientras
+   indexas.
 
 ## Despliegue con systemd
 

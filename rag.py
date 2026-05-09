@@ -16,16 +16,34 @@ def build_ollama_client(settings: dict) -> Client:
 
 
 def load_knowledge_collection(settings: dict):
+    """Carga la colección de ChromaDB al arrancar el bot.
+
+    Si la base existente tiene metadatos incompatibles (por ejemplo, porque
+    se creó con otra versión del bot o quedó corrupta tras un fallo), borra
+    la colección y crea una vacía. El bot arranca igualmente y el admin
+    podrá reindexar con ``/sync_knowledge``.
+    """
     db_dir = settings["paths"]["db_dir"]
     collection_name = settings["knowledge_base"]["collection_name"]
     embedding_function = build_embedding_function(settings)
 
     client = get_chroma_client(db_dir)
-    return get_collection(
-        client=client,
-        collection_name=collection_name,
-        embedding_function=embedding_function,
-    )
+
+    try:
+        return get_collection(
+            client=client,
+            collection_name=collection_name,
+            embedding_function=embedding_function,
+        )
+    except Exception:
+        try:
+            client.delete_collection(name=collection_name)
+        except Exception:
+            pass
+        return client.create_collection(
+            name=collection_name,
+            embedding_function=embedding_function,
+        )
 
 
 def get_collection_count(collection) -> int:
