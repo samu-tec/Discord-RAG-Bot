@@ -196,11 +196,15 @@ def sync_knowledge_base(settings: dict) -> dict:
     )
 
     if ids:
-        collection.add(
-            ids=ids,
-            documents=texts,
-            metadatas=metadatas,
-        )
+        # Añadir en lotes para evitar timeout de ChromaDB cuando hay muchos chunks.
+        batch_size = 50
+        for start in range(0, len(ids), batch_size):
+            end = start + batch_size
+            collection.add(
+                ids=ids[start:end],
+                documents=texts[start:end],
+                metadatas=metadatas[start:end],
+            )
 
     return {
         "files_indexed": len(documents),
