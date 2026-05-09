@@ -2,10 +2,17 @@ from ollama import Client
 
 from indexer import build_embedding_function, get_chroma_client, get_collection
 
+# Timeout en segundos para llamadas a Ollama. La inferencia en CPU puede ser
+# lenta, pero por encima de 5 minutos asumimos que algo va mal y abortamos
+# para que el bot no quede colgado indefinidamente.
+OLLAMA_TIMEOUT_SECONDS = 300
+
 
 def build_ollama_client(settings: dict) -> Client:
     base_url = settings["ollama"]["base_url"]
-    return Client(host=base_url)
+    # Los kwargs adicionales se reenvían a httpx.Client. ``timeout`` cubre tanto
+    # la conexión como la respuesta completa.
+    return Client(host=base_url, timeout=OLLAMA_TIMEOUT_SECONDS)
 
 
 def load_knowledge_collection(settings: dict):
@@ -74,6 +81,12 @@ def build_context(chunks: list[dict]) -> str:
 
 
 def generate_rag_answer(question: str, settings: dict, collection) -> dict:
+    """Ejecuta el pipeline RAG completo: recupera contexto y genera respuesta.
+
+    Devuelve un diccionario con el campo ``has_context`` que indica si se
+    encontró información relevante. Si la colección está vacía, devuelve
+    ``needs_sync=True`` para que el bot le pida al admin reindexar.
+    """
     top_k = settings["retrieval"]["top_k"]
     chat_model = settings["ollama"]["chat_model"]
     temperature = settings["ollama"]["temperature"]
@@ -92,6 +105,8 @@ def generate_rag_answer(question: str, settings: dict, collection) -> dict:
             "needs_sync": True,
         }
 
+    # Limitamos top_k a la cantidad real de chunks para evitar que ChromaDB
+    # devuelva un error si pedimos más fragmentos de los que existen.
     chunks = retrieve_relevant_chunks(
         question=question,
         collection=collection,
